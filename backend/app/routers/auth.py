@@ -4,7 +4,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from .. import schemas, models
-from ..auth import authenticate_user, create_access_token, get_current_user, get_password_hash
+from ..auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    verify_password,
+)
 from ..database import get_db
 from ..config import get_settings
 
@@ -16,16 +22,32 @@ settings = get_settings()
 def ensure_admin_exists(db: Session):
     if settings.admin_email and settings.admin_password:
         admin = db.query(models.User).filter(models.User.email == settings.admin_email).first()
+        hashed_password = get_password_hash(settings.admin_password)
+
         if not admin:
-            admin_user = models.User(
+            admin = models.User(
                 email=settings.admin_email,
                 full_name="Admin",
-                hashed_password=get_password_hash(settings.admin_password),
+                hashed_password=hashed_password,
                 is_admin=True,
             )
-            db.add(admin_user)
+            db.add(admin)
             db.commit()
-            db.refresh(admin_user)
+            db.refresh(admin)
+            return admin
+
+        updated = False
+        if not admin.is_admin:
+            admin.is_admin = True
+            updated = True
+        if not verify_password(settings.admin_password, admin.hashed_password):
+            admin.hashed_password = hashed_password
+            updated = True
+
+        if updated:
+            db.commit()
+            db.refresh(admin)
+    return admin
 
 
 @router.post("/register", response_model=schemas.UserRead)

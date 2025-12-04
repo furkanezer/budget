@@ -6,8 +6,8 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 60 * 24
     algorithm: str = "HS256"
-    admin_email: EmailStr | None = None
-    admin_password: str | None = None
+    admin_email: EmailStr | None = "admin@example.com"
+    admin_password: str | None = "admin1234"
 
     class Config:
         env_file = ".env"
