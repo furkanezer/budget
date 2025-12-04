@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, SessionLocal
 from .config import get_settings
 from . import models
 from .routers import auth, transactions, admin
@@ -17,6 +17,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def ensure_admin_user():
+    """Guarantee the default admin account exists for first-time logins."""
+    db = SessionLocal()
+    try:
+        auth.ensure_admin_exists(db)
+    finally:
+        db.close()
 
 app.include_router(auth.router)
 app.include_router(transactions.router)
