@@ -9,6 +9,7 @@ from ..auth import (
     create_access_token,
     get_current_user,
     get_password_hash,
+    normalize_email,
     verify_password,
 )
 from ..database import get_db
@@ -20,43 +21,48 @@ settings = get_settings()
 
 
 def ensure_admin_exists(db: Session):
-    if settings.admin_email and settings.admin_password:
-        admin = db.query(models.User).filter(models.User.email == settings.admin_email).first()
-        hashed_password = get_password_hash(settings.admin_password)
+    admin = None
+    if not settings.admin_email or not settings.admin_password:
+        return None
 
-        if not admin:
-            admin = models.User(
-                email=settings.admin_email,
-                full_name="Admin",
-                hashed_password=hashed_password,
-                is_admin=True,
-            )
-            db.add(admin)
-            db.commit()
-            db.refresh(admin)
-            return admin
+    normalized_email = normalize_email(settings.admin_email)
+    admin = db.query(models.User).filter(models.User.email == normalized_email).first()
+    hashed_password = get_password_hash(settings.admin_password)
 
-        updated = False
-        if not admin.is_admin:
-            admin.is_admin = True
-            updated = True
-        if not verify_password(settings.admin_password, admin.hashed_password):
-            admin.hashed_password = hashed_password
-            updated = True
+    if not admin:
+        admin = models.User(
+            email=normalized_email,
+            full_name="Admin",
+            hashed_password=hashed_password,
+            is_admin=True,
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        return admin
 
-        if updated:
-            db.commit()
-            db.refresh(admin)
+    updated = False
+    if not admin.is_admin:
+        admin.is_admin = True
+        updated = True
+    if not verify_password(settings.admin_password, admin.hashed_password):
+        admin.hashed_password = hashed_password
+        updated = True
+
+    if updated:
+        db.commit()
+        db.refresh(admin)
     return admin
 
 
 @router.post("/register", response_model=schemas.UserRead)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.User).filter(models.User.email == user.email).first()
+    normalized_email = normalize_email(user.email)
+    existing = db.query(models.User).filter(models.User.email == normalized_email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     new_user = models.User(
-        email=user.email,
+        email=normalized_email,
         full_name=user.full_name,
         hashed_password=get_password_hash(user.password),
         is_admin=False,

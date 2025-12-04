@@ -30,8 +30,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
-    return db.query(models.User).filter(models.User.email == email).first()
+    normalized = normalize_email(email)
+    return db.query(models.User).filter(models.User.email == normalized).first()
 
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
