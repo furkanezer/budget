@@ -10,6 +10,7 @@ from ..auth import (
     get_current_user,
     get_password_hash,
     normalize_email,
+    resolve_admin_credentials,
     verify_password,
 )
 from ..database import get_db
@@ -21,17 +22,13 @@ settings = get_settings()
 
 
 def ensure_admin_exists(db: Session):
-    admin = None
-    if not settings.admin_email or not settings.admin_password:
-        return None
-
-    normalized_email = normalize_email(settings.admin_email)
-    admin = db.query(models.User).filter(models.User.email == normalized_email).first()
-    hashed_password = get_password_hash(settings.admin_password)
+    email, password = resolve_admin_credentials()
+    admin = db.query(models.User).filter(models.User.email == email).first()
+    hashed_password = get_password_hash(password)
 
     if not admin:
         admin = models.User(
-            email=normalized_email,
+            email=email,
             full_name="Admin",
             hashed_password=hashed_password,
             is_admin=True,
@@ -45,7 +42,7 @@ def ensure_admin_exists(db: Session):
     if not admin.is_admin:
         admin.is_admin = True
         updated = True
-    if not verify_password(settings.admin_password, admin.hashed_password):
+    if not verify_password(password, admin.hashed_password):
         admin.hashed_password = hashed_password
         updated = True
 
@@ -58,12 +55,16 @@ def ensure_admin_exists(db: Session):
 @router.post("/register", response_model=schemas.UserRead)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     normalized_email = normalize_email(user.email)
+    full_name = user.full_name.strip()
+    if not full_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="İsim alanı boş olamaz")
+
     existing = db.query(models.User).filter(models.User.email == normalized_email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     new_user = models.User(
         email=normalized_email,
-        full_name=user.full_name,
+        full_name=full_name,
         hashed_password=get_password_hash(user.password),
         is_admin=False,
     )

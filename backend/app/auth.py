@@ -16,7 +16,11 @@ settings = get_settings()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        # Any malformed or legacy hash should be treated as a failed match
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -32,6 +36,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def resolve_admin_credentials():
+    """Return a guaranteed, normalized admin credential tuple.
+
+    Environment overrides may be empty or missing; fall back to defaults so the
+    admin account can always be created and used for first-time access.
+    """
+    fallback_email = "admin@example.com"
+    fallback_password = "admin1234"
+
+    raw_email = settings.admin_email or fallback_email
+    raw_password = settings.admin_password or fallback_password
+
+    email = normalize_email(str(raw_email).strip()) if raw_email else fallback_email
+    password = str(raw_password).strip() or fallback_password
+
+    return email, password
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:

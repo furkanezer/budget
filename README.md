@@ -16,8 +16,8 @@ Modern bütçe uygulaması: kullanıcı girişi, admin paneli, gelir/gider takib
    - Backend API: http://localhost:9050 (Swagger: `/docs`)
    - Frontend: http://localhost:4173
 4. Varsayılan admin girişi (docker-compose environment): `admin@example.com` / `admin1234`
-   - Uygulama açılışında bu bilgilerle admin hesabı otomatik oluşturulur ya da parolanız .env / environment değişkeniyle
-     değiştiyse güncellenir.
+   - Ortam değişkenleri boş bırakılırsa bile bu bilgilerle admin hesabı otomatik oluşturulur ya da parolanız .env /
+     environment değişkeniyle değiştiyse güncellenir.
 5. (İsteğe bağlı) Yerel geliştirme için backend'i doğrudan çalıştırma:
    ```bash
    python -m venv .venv
